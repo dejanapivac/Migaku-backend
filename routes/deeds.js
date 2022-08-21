@@ -24,7 +24,7 @@ router.get("/getNearbyDeeds", authorization, async (req, res) => {
         const user = await pool.query("SELECT city, country from users WHERE id = $1", [user_id])
         const userCity = user.rows[0].city
         const userCountry = user.rows[0].country
-        const nearbyDeeds = await pool.query("SELECT users.id as user_id, deeds.creator_user_id, image, deeds.name as  deedName, category, street, zipCode, deeds.city as deedCity, deeds.country as deedCountry, start_time, users.name as creatorUserName FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.city = $1 AND deeds.country = $2 AND completed = false",
+        const nearbyDeeds = await pool.query("SELECT users.id as user_id, deeds.id as deed_id,deeds.creator_user_id, image, deeds.name as  deedName, category, street, zipCode, deeds.city as deedCity, deeds.country as deedCountry, start_time, users.name as creatorUserName FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.city = $1 AND deeds.country = $2 AND completed = false",
             [userCity, userCountry])
 
         res.json(nearbyDeeds.rows);
@@ -54,7 +54,7 @@ router.post("/attendEvent/:id", authorization, async (req, res) => {
         const going = await pool.query("SELECT * FROM attendants WHERE user_id = $1 AND deed_id = $2", [user_id, deed_id])
         if (going.rows.length !== 0) {
             await pool.query("DELETE FROM attendants WHERE user_id = $1 AND deed_id = $2", [user_id, deed_id]);
-            return res.json({success: "Deleted successfully"});
+            return res.json({success: "Not attending event"});
         }
 
         await pool.query("INSERT INTO attendants (user_id, deed_id) VALUES ($1, $2)", [user_id, deed_id]);
@@ -65,11 +65,27 @@ router.post("/attendEvent/:id", authorization, async (req, res) => {
     }
 })
 
+router.get("/isAttending/:id", authorization, async(req, res) => {
+    const deed_id = req.params.id
+    const user_id = req.user
+    try{
+        const going = await pool.query("SELECT * FROM attendants WHERE user_id = $1 AND deed_id = $2", [user_id, deed_id])
+        if(going.rows.length !== 0){
+            res.json({going: "true"})
+        }else {
+            res.json({going: "false"})
+        }
+    }catch(err){
+        console.error(err)
+        res.status(500).send("")
+    }
+})
+
 //all deeds user attended
 router.get("/attended/:id", async(req, res) => {
     const user_id = req.params.id;
     try{
-        const attended = await pool.query("SELECT users.id as user_id, image, deeds.name AS deedName, category, street, zipCode, deeds.city AS deedCity, deeds.country AS deedCountr, start_time, users.name, deeds.description FROM deeds INNER JOIN attendants ON deeds.id = attendants.deed_id INNER JOIN users ON deeds.creator_user_id = users.id WHERE attendants.user_id = $1", [user_id])
+        const attended = await pool.query("SELECT users.id as user_id, deeds.id as deed_id, image, deeds.name AS deedName, category, street, zipCode, deeds.city AS deedCity, deeds.country AS deedCountr, start_time, users.name, deeds.description FROM deeds INNER JOIN attendants ON deeds.id = attendants.deed_id INNER JOIN users ON deeds.creator_user_id = users.id WHERE attendants.user_id = $1", [user_id])
         res.json(attended.rows)
     }catch(err){
         console.error(err.message);
@@ -81,7 +97,7 @@ router.get("/attended/:id", async(req, res) => {
 router.get("/created/:id", async (req, res) => {
     const user_id = req.params.id;
     try{
-        const created = await pool.query("SELECT users.id as user_id, image, deeds.name AS deedName, category, street, ZipCode, deeds.city AS deedCity, deeds.country AS deedCOuntry, start_time, users.name FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.creator_user_id = $1", [user_id])
+        const created = await pool.query("SELECT users.id as user_id, deeds.id as deed_id, image, deeds.name AS deedName, category, street, ZipCode, deeds.city AS deedCity, deeds.country AS deedCOuntry, start_time, users.name FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.creator_user_id = $1", [user_id])
         res.json(created.rows)
     }catch (err){
         console.log(err.message);
