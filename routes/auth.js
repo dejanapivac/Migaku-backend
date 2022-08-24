@@ -131,4 +131,14 @@ router.patch("/updatePassword", authorization, async(req, res) => {
     }
 })
 
+router.get("/getProfilePic", authorization, async(req, res) => {
+    try {
+        const profilePicture = await pool.query("SELECT profile_picture FROM users WHERE id=$1", [req.user]);
+        res.json(profilePicture.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
+})
+
 module.exports = router;

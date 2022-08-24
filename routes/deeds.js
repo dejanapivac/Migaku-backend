@@ -42,7 +42,7 @@ router.get("/getNearbyDeeds", authorization, async (req, res) => {
         const user = await pool.query("SELECT city, country from users WHERE id = $1", [user_id])
         const userCity = user.rows[0].city
         const userCountry = user.rows[0].country
-        const nearbyDeeds = await pool.query("SELECT users.id as user_id, users.name as name, deeds.id as deed_id, image, deeds.name as  deedName, category, street, zipCode, deeds.city as deedCity, deeds.country as deedCountry, start_time FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.city = $1 AND deeds.country = $2 AND completed = false", [userCity, userCountry])
+        const nearbyDeeds = await pool.query("SELECT users.id as user_id, users.name as name, deeds.id as deed_id, image, deeds.name as  deedName, category, street, zipCode, deeds.city as deedCity, deeds.country as deedCountry, start_time, deeds.description FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.city = $1 AND deeds.country = $2 AND completed = false", [userCity, userCountry])
         res.json(nearbyDeeds.rows);
     } catch (err) {
         console.error(err.message);
@@ -115,7 +115,7 @@ router.get("/attended/:id", async (req, res) => {
 router.get("/created/:id", async (req, res) => {
     const user_id = req.params.id;
     try {
-        const created = await pool.query("SELECT users.id as user_id, deeds.id as deed_id, image, deeds.name AS deedName, category, street, ZipCode, deeds.city AS deedCity, deeds.country AS deedCOuntry, start_time, users.name FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.creator_user_id = $1", [user_id])
+        const created = await pool.query("SELECT users.id as user_id, deeds.id as deed_id, image, deeds.name AS deedName, category, street, ZipCode, deeds.city AS deedCity, deeds.country AS deedCOuntry, start_time, users.name, deeds.description FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.creator_user_id = $1", [user_id])
         res.json(created.rows)
     } catch (err) {
         console.log(err.message);
@@ -136,11 +136,25 @@ router.patch("/complete/:id", authorization, async (req, res) => {
     }
 })
 
+//used to get list of attendees in expanded event
 router.get("/getAttendees/:id", async (req, res) => {
     const deed_id = req.params.id
     try {
         const attendees = await pool.query("SELECT users.profile_picture, users.name, users.id FROM users INNER JOIN attendants ON users.id = attendants.user_id WHERE attendants.deed_id = $1", [deed_id])
         res.json(attendees.rows)
+    } catch (err) {
+        console.error(err.message)
+        res.status(500).send("Couldn't fetch number of attendees.")
+    }
+})
+
+router.get("/getReviewers/:id", authorization,async (req, res) => {
+    const deed_id = req.params.id
+    const userId = req.user
+    try {
+        const reviewers = await pool.query("SELECT users.profile_picture, users.name, users.id FROM users INNER JOIN attendants ON users.id = attendants.user_id WHERE attendants.deed_id = $1", [deed_id])
+        const filteredReviewers = reviewers.rows.filter(reviewer => reviewer.id != userId)
+        res.json(filteredReviewers)
     } catch (err) {
         console.error(err.message)
         res.status(500).send("Couldn't fetch number of attendees.")
