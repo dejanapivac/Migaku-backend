@@ -2,17 +2,21 @@ const router = require("express").Router()
 const authorization = require("../middleware/authorization");
 
 const pool = require("../db");
+const {cloudinary} = require("../utils/cloudinarySetup");
+const upload = require("../utils/multer");
 
-router.post("/add", authorization, async (req, res) => {
+router.post("/add", authorization, upload.single('image'), async (req, res) => {
     const current_user_id = req.user;
-    const {image, name, category, street, zipCode, city, country, start_time, description} = req.body;
+    const {name, category, street, zipCode, city, country, start_time, description} = req.body;
 
     try {
-        const deed = await pool.query("INSERT INTO deeds (creator_user_id, image, name, category, street, zipCode, city, country, start_time, description) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9,$10) RETURNING *", [current_user_id, image, name, category, street, zipCode, city, country, start_time, description]);
+        const uploadImage = await cloudinary.uploader.upload(req.file.path);
+        const avatar = uploadImage.url;
+        const deed = await pool.query("INSERT INTO deeds (creator_user_id, image, name, category, street, zipCode, city, country, start_time, description) VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9,$10) RETURNING *", [current_user_id, avatar, name, category, street, zipCode, city, country, start_time, description]);
         const deedRow = deed.rows[0]
         const user = await pool.query("SELECT name FROM users WHERE id = $1", [current_user_id]);
         const deedInfo = {
-            category: deed.category,
+            category: deedRow.category,
             deed_id: deedRow.id,
             deedcity: deedRow.city,
             deedcountry: deedRow.country,
@@ -24,6 +28,7 @@ router.post("/add", authorization, async (req, res) => {
             user_id: current_user_id,
             zipcode: deedRow.zipCode
         }
+
         res.json(deedInfo);
     } catch (err) {
         console.error(err.message)
@@ -38,7 +43,6 @@ router.get("/getNearbyDeeds", authorization, async (req, res) => {
         const userCity = user.rows[0].city
         const userCountry = user.rows[0].country
         const nearbyDeeds = await pool.query("SELECT users.id as user_id, users.name as name, deeds.id as deed_id, image, deeds.name as  deedName, category, street, zipCode, deeds.city as deedCity, deeds.country as deedCountry, start_time FROM deeds INNER JOIN users ON deeds.creator_user_id = users.id WHERE deeds.city = $1 AND deeds.country = $2 AND completed = false", [userCity, userCountry])
-
         res.json(nearbyDeeds.rows);
     } catch (err) {
         console.error(err.message);

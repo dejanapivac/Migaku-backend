@@ -5,10 +5,13 @@ const authorization = require("../middleware/authorization");
 
 const pool = require("../db");
 const {registerValidation, userValidationResult, loginValidation} = require("../validation/userValidation");
+const {cloudinary} = require("../utils/cloudinarySetup");
+const upload = require("../utils/multer");
 
 //registering
-router.post("/register", registerValidation, userValidationResult, async (req, res) => {
-    const {name, profile_picture, email, password, city, country} = req.body;
+//TODO ADD back registerValidation, userValidationResult
+router.post("/register", upload.single('image'), async (req, res) => {
+    const {name, email, password, city, country} = req.body;
 
     try {
         const user = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -21,8 +24,11 @@ router.post("/register", registerValidation, userValidationResult, async (req, r
         const salt = await bcrypt.genSalt(saltRound);
         const bcryptPassword = await bcrypt.hash(password, salt);
 
+        const uploadImage = await cloudinary.uploader.upload(req.file.path);
+        const avatar = uploadImage.url;
+
         const newUser = await pool.query("INSERT INTO users (name, profile_picture, email, password, city, country) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
-            [name, profile_picture, email, bcryptPassword, city, country]);
+            [name, avatar, email, bcryptPassword, city, country]);
         const token = jwtGenerator(newUser.rows[0].id);
         return res.json({token});
     } catch (err) {
@@ -77,9 +83,9 @@ router.get("/getById/:id", async (req, res) => {
     }
 })
 
-router.patch("/updateInfo", authorization, async (req, res) => {
+router.patch("/updateInfo", upload.single('image'), authorization, async (req, res) => {
     const user_id = req.user
-    const { profile_picture, name, email, city, country} = req.body
+    const { name, email, city, country} = req.body
     try{
 
         const user = await pool.query("SELECT * FROM users WHERE id = $1", [user_id]);
@@ -87,8 +93,12 @@ router.patch("/updateInfo", authorization, async (req, res) => {
         if (user.rows.length === 0) {
             return res.status(401).json("User doesn't exist.")
         }
+
+        const uploadImage = await cloudinary.uploader.upload(req.file.path);
+        const avatar = uploadImage.url;
+
         await pool.query("UPDATE users SET profile_picture = $1, name = $2, email = $3, city = $4, country = $5 WHERE id = $6",
-            [profile_picture, name, email, city, country, user_id])
+            [avatar, name, email, city, country, user_id])
         res.json({success: "Profile updated."});
     }catch(err){
         console.error(err.message)
@@ -120,7 +130,5 @@ router.patch("/updatePassword", authorization, async(req, res) => {
         res.status(500).send("Couldn't update password.")
     }
 })
-
-
 
 module.exports = router;
