@@ -141,6 +141,7 @@ router.get("/getAttendees/:id", async (req, res) => {
     const deed_id = req.params.id
     try {
         const attendees = await pool.query("SELECT users.profile_picture, users.name, users.id FROM users INNER JOIN attendants ON users.id = attendants.user_id WHERE attendants.deed_id = $1", [deed_id])
+        console.log(attendees)
         res.json(attendees.rows)
     } catch (err) {
         console.error(err.message)
@@ -148,7 +149,7 @@ router.get("/getAttendees/:id", async (req, res) => {
     }
 })
 
-router.get("/getReviewers/:id", authorization,async (req, res) => {
+    router.get("/getReviewers/:id", authorization,async (req, res) => {
     const deed_id = req.params.id
     const userId = req.user
     try {

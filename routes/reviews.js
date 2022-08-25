@@ -5,11 +5,13 @@ const pool = require("../db");
 router.post("/add/:id", authorization, async(req, res) => {
     const review_by_id = req.user
     const person_reviewed_id = req.params.id
-    const { grade, review} = req.body
+    const { grade, review, deed_id } = req.body
 
     try{
         await pool.query("INSERT INTO reviews (review_by_id, person_reviewed_id, grade, review) VALUES ($1, $2, $3, $4)",
             [review_by_id, person_reviewed_id, grade, review])
+        await pool.query("UPDATE attendants SET review_done = true WHERE deed_id = $1 AND user_id=$2",
+            [deed_id, review_by_id])
         res.json({success: "true"})
     }catch (err){
         console.error(err.message)
