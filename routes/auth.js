@@ -64,6 +64,7 @@ router.post("/login", loginValidation, userValidationResult, async (req, res) =>
 
 router.get("/currentUser", authorization, async (req, res) => {
     try {
+        console.log(req.user)
         const user = await pool.query("SELECT name, email, id FROM users WHERE id=$1", [req.user]);
         res.json(user.rows[0]);
     } catch (err) {

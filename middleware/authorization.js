@@ -16,6 +16,7 @@ module.exports = function(req, res, next) {
     }else{
         const payload = jwt.verify(token, process.env.jwtSecret);
         req.user = payload.user;
+        console.log(payload.user)
         next();
     }
 }
